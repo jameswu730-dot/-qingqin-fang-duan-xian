@@ -28,32 +28,43 @@ function verifyLineSignature(req) {
   );
 }
 
+
 function demoReply(userId, text) {
   const history = memory.get(userId) || [];
-  history.push({ role: "user", text, at: new Date().toISOString() });
+  const previousUserText = history
+    .filter(x => x.role === "user")
+    .slice(-3)
+    .map(x => x.text)
+    .join(" ");
 
   let reply = "嗯嗯～我有在聽 😊 你再跟我說說看。";
 
-  if (/吃|飯|早餐|午餐|晚餐/.test(text)) {
-    reply = "有吃就好～今天吃什麼？好不好吃？";
-  } else if (/睡|失眠|睡覺|睡不好/.test(text)) {
-    reply = "最近睡得還好嗎？如果這幾天一直睡不好，也可以跟我說一下。";
+  const mentionsSleep = /睡|失眠/.test(text);
+  const previousSleep = /睡不好|失眠/.test(previousUserText);
+  const mentionsDuration = /連續|已經|好幾|幾天|三天|[0-9０-９]+天/.test(text);
+
+  if (previousSleep && mentionsDuration) {
+    reply = "原來已經持續好幾天了。睡不好一定很累，你願意跟我說說，是比較難入睡，還是半夜容易醒來嗎？";
+  } else if (mentionsSleep) {
+    reply = "聽起來最近睡得不太好。這樣的情況持續多久了呢？";
+  } else if (/吃|飯|早餐|午餐|晚餐/.test(text)) {
+    reply = "今天吃了什麼？好不好吃？";
   } else if (/痛|酸|不舒服|頭暈|胸|腳|肩膀/.test(text)) {
-    reply = "喔～我知道了。這個不舒服多久了？現在還會嗎？";
+    reply = "我知道了。這個不舒服多久了？現在還會嗎？";
   } else if (/市場|買菜|菜|鄰居/.test(text)) {
-    reply = "哈哈，最近市場還好逛嗎？今天有沒有買到想吃的？";
+    reply = "最近市場還好逛嗎？今天有沒有買到想吃的？";
   } else if (/天氣|下雨|冷|熱/.test(text)) {
     reply = "最近天氣變化滿快的，你今天有出去嗎？";
   } else if (/好|沒事|沒問題/.test(text)) {
     reply = "那就好 ❤️ 今天過得還順利嗎？";
   }
 
+  history.push({ role: "user", text, at: new Date().toISOString() });
   history.push({ role: "assistant", text: reply, at: new Date().toISOString() });
   memory.set(userId, history.slice(-30));
 
   return reply;
 }
-
 async function replyToLine(replyToken, text) {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
   if (!token) throw new Error("LINE_CHANNEL_ACCESS_TOKEN is missing");
