@@ -87,32 +87,11 @@ async function replyToLine(replyToken, text) {
   }
 }
 
-app.get("/health", (req, res) => {
-  res.json({ ok: true, service: "親情防斷線 V0.1", mode: process.env.DEMO_MODE === "true" ? "demo" : "live" });
-});
 
+// 暫時關閉未經身分驗證的家庭對話查詢。
 app.get("/api/family/:userId", (req, res) => {
-  const history = memory.get(req.params.userId) || [];
-  const userMessages = history.filter(x => x.role === "user").slice(-10);
-  const text = userMessages.map(x => x.text).join(" ");
-
-  const flags = [];
-  if (/痛|酸|不舒服|睡不好|失眠|頭暈/.test(text)) {
-    flags.push({
-      level: "yellow",
-      title: "值得留意",
-      detail: "最近對話中出現身體不舒服或睡眠相關描述，建議子女找時間關心。"
-    });
-  }
-
-  res.json({
-    userId: req.params.userId,
-    recentMessages: history.slice(-12),
-    radar: flags.length ? flags : [{
-      level: "green",
-      title: "目前正常",
-      detail: "最近對話沒有偵測到需要特別提醒的內容。"
-    }]
+  res.status(403).json({
+    error: "此查詢功能暫時關閉，等待加入身分驗證。"
   });
 });
 
@@ -128,8 +107,30 @@ app.post("/webhook", async (req, res) => {
     if (event.type !== "message" || event.message?.type !== "text") continue;
 
     const userId = event.source?.userId;
-    const text = event.message.text || "";
-    const reply = demoReply(userId, text);
+   
+const text = event.message.text || "";
+
+let reply;
+
+if (text.trim() === "查看雷達") {
+  const history = memory.get(userId) || [];
+  const recent = history
+    .filter(x => x.role === "user")
+    .slice(-10)
+    .map(x => x.text);
+
+  const combined = recent.join(" ");
+
+  if (recent.length === 0) {
+    reply = "親情雷達測試：目前沒有對話紀錄。";
+  } else if (/痛|酸|不舒服|睡不好|失眠|頭暈/.test(combined)) {
+    reply = "🟡 親情雷達測試\n最近對話曾提到身體不舒服或睡眠問題，值得進一步關心。\n\n提醒：這只是關鍵字測試，並非健康判斷。";
+  } else {
+    reply = "⚪ 親情雷達測試\n最近 10 則訊息未命中目前設定的關鍵字。\n\n這不代表沒有需要關心的事情。";
+  }
+} else {
+  reply = demoReply(userId, text);
+}
 
     try {
       await replyToLine(event.replyToken, reply);
