@@ -96,6 +96,13 @@ function newCode() {
   do { code = String(crypto.randomInt(100000, 1000000)); } while (pending.has(code));
   return code;
 }
+async function saveFamilyLink(parentId, childId) {
+  await db.query(
+    `INSERT INTO family_links (parent_line_user_id, child_line_user_id)
+     VALUES ($1, $2)`,
+    [parentId, childId]
+  );
+}
 
 function unlink(userId) {
   const child = linkedParentToChild.get(userId);
@@ -151,9 +158,12 @@ async function handleMessage(event) {
       pending.delete(code);
       reply = "其中一個帳號已有綁定，請先解除綁定再重新配對。";
     } else {
-      linkedParentToChild.set(userId, request.childId);
-      linkedChildToParent.set(request.childId, userId);
-      pending.delete(code);
+      await saveFamilyLink(userId, request.childId);
+
+linkedParentToChild.set(userId, request.childId);
+linkedChildToParent.set(request.childId, userId);
+
+pending.delete(code);
       reply = "✅ 測試家人綁定完成。你傳送含有測試關鍵字的訊息時，孩子帳號會收到不含原文的提醒。傳「解除綁定」可隨時停止。";
       notifyId = request.childId;
       notifyText = "✅ 測試家人綁定完成。你可能收到關鍵字提醒；不會收到對話原文。傳「解除綁定」可隨時停止。";
