@@ -8,7 +8,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
-app.use(express.static("public"));
+app.get("/", (req, res) => {
+  res.type("text").send("親情防斷線測試版運作中。家庭資料查詢功能暫不開放。");
+});
 
 const memory = new Map();
 
