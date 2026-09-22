@@ -103,6 +103,29 @@ async function saveFamilyLink(parentId, childId) {
     [parentId, childId]
   );
 }
+async function loadFamilyLinks() {
+  const result = await db.query(
+    `SELECT parent_line_user_id, child_line_user_id
+     FROM family_links`
+  );
+
+  linkedParentToChild.clear();
+  linkedChildToParent.clear();
+
+  for (const row of result.rows) {
+    linkedParentToChild.set(
+      row.parent_line_user_id,
+      row.child_line_user_id
+    );
+
+    linkedChildToParent.set(
+      row.child_line_user_id,
+      row.parent_line_user_id
+    );
+  }
+
+  console.log(`Loaded ${result.rows.length} family link(s) from database.`);
+}
 
 function unlink(userId) {
   const child = linkedParentToChild.get(userId);
@@ -207,5 +230,18 @@ app.post("/webhook", (req, res) => {
   }
 });
 
-app.listen(PORT, "0.0.0.0", () => console.log(`親情防斷線 V0.3 running on port ${PORT}`));
+async function startServer() {
+  try {
+    await loadFamilyLinks();
+    console.log("Family links loaded successfully.");
+  } catch (err) {
+    console.error("Failed to load family links:", err);
+  }
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`親情防斷線 V0.4 running on port ${PORT}`);
+  });
+}
+
+startServer();
 
