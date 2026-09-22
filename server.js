@@ -1,17 +1,40 @@
 import express from "express";
 import crypto from "crypto";
 import dotenv from "dotenv";
+import pg from "pg";
 
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 const SECRET = process.env.LINE_CHANNEL_SECRET;
+const { Pool } = pg;
+
+const db = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 const PAIR_TTL_MS = 10 * 60 * 1000;
 const ALERT_COOLDOWN_MS = 60 * 60 * 1000;
 
 app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.get("/", (_req, res) => res.type("text").send("親情防斷線 V0.3 測試版運作中。家庭資料查詢功能暫不開放。"));
+app.get("/db-test", async (_req, res) => {
+  try {
+    const result = await db.query("SELECT NOW() AS now");
+    res.json({
+      ok: true,
+      database: "connected",
+      time: result.rows[0].now
+    });
+  } catch (err) {
+    console.error("Database connection error:", err);
+    res.status(500).json({
+      ok: false,
+      database: "connection_failed"
+    });
+  }
+});
 app.get("/api/family/:userId", (_req, res) => res.status(403).json({ error: "查詢功能暫不開放" }));
 
 const memory = new Map();
