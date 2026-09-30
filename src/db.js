@@ -35,5 +35,7 @@ export async function migrate(pool) {
 }
 export function safeLog(code, error) {
   // Never log error.message/stack, HTTP bodies, user IDs, or conversation text.
-  console.error(JSON.stringify({code, errorClass: error?.name === 'AbortError' ? 'timeout' : 'operation_failed'}));
+  const allowed = new Set(['SELF_SIGNED_CERT_IN_CHAIN','DEPTH_ZERO_SELF_SIGNED_CERT','UNABLE_TO_VERIFY_LEAF_SIGNATURE','CERT_HAS_EXPIRED','ECONNREFUSED','ENOTFOUND','ETIMEDOUT','28P01','42501','42P01','42703','23505']);
+  const errorClass = error?.name === 'AbortError' ? 'timeout' : allowed.has(error?.code) ? error.code : 'operation_failed';
+  console.error(JSON.stringify({code, errorClass}));
 }
